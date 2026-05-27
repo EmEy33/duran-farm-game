@@ -7,7 +7,26 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
-body{overflow:hidden;background:#000;font-family:'Nunito',sans-serif;}
+html,body{
+  width:100%;
+  height:100%;
+  min-height:100dvh;
+  overflow:hidden;
+  background:#000;
+  font-family:'Nunito',sans-serif;
+  touch-action:none;
+  overscroll-behavior:none;
+  -webkit-user-select:none;
+  user-select:none;
+}
+canvas{
+  position:fixed;
+  inset:0;
+  width:100vw!important;
+  height:100dvh!important;
+  display:block;
+  touch-action:none;
+}
 
 #hud{
   position:fixed;top:0;left:0;right:0;
@@ -222,6 +241,78 @@ body{overflow:hidden;background:#000;font-family:'Nunito',sans-serif;}
   transition:transform .1s,box-shadow .1s;
 }
 .end-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.4);}
+
+@media (max-width: 768px){
+  #hud{
+    padding:8px 8px;
+    gap:6px;
+  }
+  .hud-pill{
+    font-size:12px;
+    padding:7px 9px;
+    gap:4px;
+  }
+  #crosshair{
+    width:18px;
+    height:18px;
+  }
+  #food-bar{
+    bottom:12px;
+    padding:7px 10px;
+  }
+  .food-slot{
+    width:52px;
+    height:52px;
+    font-size:20px;
+  }
+  #joystick-zone{
+    left:16px;
+    bottom:18px;
+    width:118px;
+    height:118px;
+  }
+  #joystick-stick{
+    width:52px;
+    height:52px;
+  }
+  #feed-btn{
+    right:16px;
+    bottom:22px;
+    width:84px;
+    height:84px;
+    font-size:12px;
+  }
+  #lock-hint{
+    bottom:126px;
+    font-size:11px;
+    padding:8px 14px;
+  }
+  #overlay-box,#end-box{
+    width:92vw;
+    max-width:380px;
+    padding:26px 22px;
+    border-radius:22px;
+  }
+  #overlay-title,.end-title{
+    font-size:32px;
+  }
+  #overlay-sub{
+    font-size:13px;
+    line-height:1.55;
+  }
+}
+@media (orientation: landscape) and (max-height: 500px){
+  #hud{padding:6px 10px;}
+  .hud-pill{font-size:11px;padding:6px 9px;}
+  #joystick-zone{width:105px;height:105px;bottom:12px;}
+  #joystick-stick{width:46px;height:46px;}
+  #feed-btn{width:76px;height:76px;bottom:14px;}
+  #food-bar{bottom:8px;}
+  .food-slot{width:46px;height:46px;}
+  #overlay-box,#end-box{padding:18px 20px;}
+  #overlay-title,.end-title{font-size:28px;}
+}
+
 </style>
 </head>
 <body>
@@ -339,6 +430,9 @@ let timerInterval = null;
 let selectedFood = 'corn';
 let yaw = 0, pitch = 0;
 let pointerLocked = false;
+let touchLookActive = false;
+let lastLookX = 0;
+let lastLookY = 0;
 let keys = {};
 let dpadX = 0, dpadZ = 0;
 let moveInterval = null;
@@ -362,6 +456,8 @@ joyZone.addEventListener("pointercancel", stopJoystick);
 joyZone.addEventListener("pointerleave", stopJoystick);
 
 function startJoystick(e){
+  e.preventDefault();
+  joyZone.setPointerCapture?.(e.pointerId);
   joyActive = true;
   const rect = joyZone.getBoundingClientRect();
   joyCenterX = rect.left + rect.width / 2;
@@ -371,6 +467,7 @@ function startJoystick(e){
 
 function moveJoystick(e){
   if(!joyActive) return;
+  e.preventDefault();
 
   let dx = e.clientX - joyCenterX;
   let dy = e.clientY - joyCenterY;
@@ -390,7 +487,8 @@ function moveJoystick(e){
   joyZ = dy / max;
 }
 
-function stopJoystick(){
+function stopJoystick(e){
+  if(e) e.preventDefault();
   joyActive = false;
   joyX = 0;
   joyZ = 0;
@@ -409,7 +507,8 @@ function init() {
   camera.position.set(0, 1.7, 24);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   document.body.appendChild(renderer.domElement);
 
@@ -432,6 +531,13 @@ function init() {
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('pointerlockchange', onPointerLockChange);
   renderer.domElement.addEventListener('click', requestLock);
+
+  renderer.domElement.addEventListener('pointerdown', onLookStart, { passive:false });
+  renderer.domElement.addEventListener('pointermove', onLookMove, { passive:false });
+  renderer.domElement.addEventListener('pointerup', onLookEnd, { passive:false });
+  renderer.domElement.addEventListener('pointercancel', onLookEnd, { passive:false });
+
+  window.visualViewport?.addEventListener('resize', onResize);
 }
 
 /* ── Farm ── */
@@ -762,6 +868,7 @@ function replaceAnimalPlaceholder(type, group) {
 /* ── Game Flow ── */
 function startGame() {
   document.getElementById('overlay').style.display = 'none';
+  enterFullscreenOnPhone();
   gameRunning = true;
   score = 0; fed = 0; bonusHits = 0; timeLeft = 60;
   updateHUD();
@@ -887,21 +994,66 @@ function startMove(x, z) {
 function stopMove() { dpadX = 0; dpadZ = 0; clearInterval(moveInterval); moveInterval = null; }
 
 /* ── Pointer Lock / Mouse Look ── */
+function enterFullscreenOnPhone() {
+  const isPhone = window.matchMedia('(max-width: 900px)').matches;
+  if (isPhone && !document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  }
+  setTimeout(onResize, 150);
+}
+
 function requestLock() {
   if (!gameRunning) return;
+
+  /* Pointer lock is for PC only. Phones use drag-look below. */
+  const isPhone = window.matchMedia('(pointer: coarse)').matches;
+  if (isPhone) return;
+
   renderer.domElement.requestPointerLock();
 }
 function onPointerLockChange() {
   pointerLocked = document.pointerLockElement === renderer.domElement;
   document.getElementById('lock-hint').classList.toggle('hidden', pointerLocked);
 }
-function onMouseMove(e) {
-  if (!pointerLocked || !gameRunning) return;
-  yaw   -= e.movementX * 0.002;
-  pitch -= e.movementY * 0.002;
+function applyLook(dx, dy) {
+  yaw   -= dx * 0.003;
+  pitch -= dy * 0.003;
   pitch  = Math.max(-0.4, Math.min(0.5, pitch));
   player.rotation.y = yaw;
   camera.rotation.x = pitch;
+}
+
+function onMouseMove(e) {
+  if (!pointerLocked || !gameRunning) return;
+  applyLook(e.movementX, e.movementY);
+}
+
+function onLookStart(e) {
+  if (!gameRunning) return;
+  if (e.pointerType === 'mouse') return;
+  e.preventDefault();
+  touchLookActive = true;
+  lastLookX = e.clientX;
+  lastLookY = e.clientY;
+  renderer.domElement.setPointerCapture?.(e.pointerId);
+}
+
+function onLookMove(e) {
+  if (!touchLookActive || !gameRunning) return;
+  if (e.pointerType === 'mouse') return;
+  e.preventDefault();
+
+  const dx = e.clientX - lastLookX;
+  const dy = e.clientY - lastLookY;
+  lastLookX = e.clientX;
+  lastLookY = e.clientY;
+
+  applyLook(dx, dy);
+}
+
+function onLookEnd(e) {
+  if (e && e.pointerType === 'mouse') return;
+  touchLookActive = false;
 }
 
 /* ── Movement ── */
@@ -1093,9 +1245,11 @@ function animate() {
 }
 
 function onResize() {
-  camera.aspect = innerWidth / innerHeight;
+  const w = window.innerWidth;
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(w, h, false);
 }
 </script>
 </body>
