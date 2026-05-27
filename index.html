@@ -574,13 +574,11 @@ function init() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
   document.body.appendChild(renderer.domElement);
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.8));
   const sun = new THREE.DirectionalLight(0xffffff, 2.2);
   sun.position.set(20, 30, 10);
-  sun.castShadow = true;
   scene.add(sun);
   const fill = new THREE.DirectionalLight(0xaaccff, 0.5);
   fill.position.set(-10, 5, -10);
@@ -632,11 +630,10 @@ const ground = new THREE.Mesh(
   new THREE.MeshLambertMaterial({ map: grassTexture, color: 0x4a8c20 })
 );
   ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
   scene.add(ground);
 
   /* dirt path */
-  addBox(0, 0.02, 0, 7, 0.05, 60, 0x6b3e1f);
+  addBox(0, 0.02, 20, 7, 0.05, 60, 0x6b3e1f);
 
   /* pens */
   createPen(-16, -8, 0xc8a45a, 'Chickens');
@@ -722,8 +719,6 @@ function addBox(x, y, z, w, h, d, color) {
     new THREE.MeshLambertMaterial({ color })
   );
   m.position.set(x, y, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
   scene.add(m);
   return m;
 }
