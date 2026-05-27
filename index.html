@@ -313,6 +313,73 @@ canvas{
   #overlay-title,.end-title{font-size:28px;}
 }
 
+
+/* Strong phone-landscape modal fix */
+@media (orientation: landscape) and (max-height: 520px){
+  #overlay,
+  #end-screen{
+    align-items:flex-start;
+    justify-content:center;
+    padding:8px;
+    overflow:auto;
+  }
+
+  #overlay-box,
+  #end-box{
+    width:min(92vw, 620px);
+    max-height:calc(100dvh - 16px);
+    overflow:auto;
+    padding:14px 18px;
+    border-radius:18px;
+  }
+
+  #overlay-title,
+  .end-title{
+    font-size:24px;
+    margin-bottom:4px;
+  }
+
+  #overlay-sub{
+    font-size:11px;
+    line-height:1.35;
+    margin-bottom:12px;
+  }
+
+  .food-guide{
+    margin:6px 0;
+    gap:6px;
+  }
+
+  .food-guide-item{
+    font-size:11px;
+    padding:5px 8px;
+  }
+
+  #overlay-btn,
+  .end-btn{
+    font-size:15px;
+    padding:9px 24px;
+  }
+
+  .end-stats{
+    grid-template-columns:repeat(4,1fr);
+    gap:6px;
+    margin:10px 0 12px;
+  }
+
+  .end-stat{
+    padding:7px 5px;
+  }
+
+  .end-stat-label{
+    font-size:8px;
+  }
+
+  .end-stat-val{
+    font-size:20px;
+  }
+}
+
 </style>
 </head>
 <body>
