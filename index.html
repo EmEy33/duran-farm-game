@@ -1143,18 +1143,18 @@ function animate() {
     // JOYSTICK MOVEMENT
     if (joyX !== 0 || joyZ !== 0) {
       applyMove(
-        joyX * MOVE_SPEED * 1.8,
-        joyZ * MOVE_SPEED * 1.8
+        joyX * MOVE_SPEED * 0.5,
+        joyZ * MOVE_SPEED * 0.5
       );
     }
 
     /* keyboard movement */
     let mx = 0, mz = 0;
 
-    if (keys['w'] || keys['arrowup']) mz -= 1;
-    if (keys['s'] || keys['arrowdown']) mz += 1;
-    if (keys['a'] || keys['arrowleft']) mx -= 1;
-    if (keys['d'] || keys['arrowright']) mx += 1;
+    if (keys['w'] || keys['arrowup']) mz -= 0.5;
+    if (keys['s'] || keys['arrowdown']) mz += 0.5;
+    if (keys['a'] || keys['arrowleft']) mx -= 0.5;
+    if (keys['d'] || keys['arrowright']) mx += 0.5;
 
     if (mx || mz) {
       applyMove(
